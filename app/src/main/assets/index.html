@@ -69,8 +69,8 @@ init();
 <div class="extra">
  <h2>♫ Музыка</h2>
  <p>Выбери аудиофайл на телефоне. Его можно слушать в приложении и управлять воспроизведением через плавающее меню.</p>
- <div class="rowx"><button class="primary" onclick="document.getElementById('audioFile').click()">Загрузить звук</button><input id="audioFile" type="file" accept="audio/*" hidden onchange="musicFile(this)"></div>
- <audio id="musicPreview" controls style="width:100%"></audio><p id="musicName"><small>Файл не выбран</small></p>
+ <div class="rowx"><button class="primary" onclick="chooseMusic()">Загрузить звук с телефона</button></div>
+ <p id="musicName"><small>Файл не выбран</small></p>
 </div>
 <div class="extra">
  <h2>♟ Любимые дебюты и гамбиты</h2>
@@ -82,8 +82,8 @@ init();
  <h2>Плавающее меню</h2>
  <p>Небольшая панель поверх других приложений: управление музыкой и закрытие панели. Шахматные подсказки поверх рейтинговой игры не показываются.</p>
  <button class="primary" onclick="enableOverlay()">Включить плавающее меню</button>
- <button onclick="Android&&Android.stopOverlay()">Выключить меню</button>
- <p id="overlayStatus" id="floatingHint">Разрешение можно отозвать в настройках Android.</p>
+ <button onclick="window.Android&&Android.stopOverlay()">Выключить меню</button>
+ <p id="overlayStatus">Разрешение можно отозвать в настройках Android.</p>
 </div>
 <div id="setup">
  <div class="cardx">
@@ -115,16 +115,16 @@ function finishSetup(tips){localStorage.setItem('cc_tips',tips?'1':'0');document
 function enableOverlay(){if(window.Android&&Android.requestOverlay)Android.requestOverlay();else overlayStatus('Открой приложение на Android, чтобы включить плавающее меню.')}
 function overlayStatus(s){document.getElementById('overlayStatus').textContent=s}
 function audioChosen(){overlayStatus('Аудиофайл передан в плавающее меню.')}
-function musicFile(el){const file=el.files&&el.files[0];if(!file)return;const url=URL.createObjectURL(file);const audio=document.getElementById('musicPreview');audio.src=url;document.getElementById('musicName').textContent=file.name;if(window.Android&&Android.pickAudio)Android.pickAudio();}
+function chooseMusic(){if(window.Android&&Android.pickAudio)Android.pickAudio();else document.getElementById('musicName').textContent='Выбор аудио доступен в установленном приложении Android.'}
 function applyTheme(){const t=themes[document.getElementById('themePick').value];document.documentElement.style.setProperty('--bg',t[0]);document.documentElement.style.setProperty('--panel',t[1]);document.documentElement.style.setProperty('--text',t[2]);localStorage.setItem('cc_theme',document.getElementById('themePick').value)}
-function applyPieces(){const mode=document.getElementById('piecePick').value;localStorage.setItem('cc_pieces',mode);draw()}
+function applyPieces(){const mode=document.getElementById('piecePick').value;localStorage.setItem('cc_pieces',mode);document.querySelectorAll('.sq').forEach(x=>{x.style.fontFamily=mode==='emoji'?'sans-serif':'serif';x.style.textShadow=mode==='emoji'?'0 1px 3px #0006':'none'})}
 function applySize(){document.querySelectorAll('.sq').forEach(x=>x.style.fontSize=document.getElementById('pieceSize').value+'px')}
 function applyBoard(){document.querySelectorAll('.light').forEach(x=>x.style.background=document.getElementById('lightColor').value);document.querySelectorAll('.dark').forEach(x=>x.style.background=document.getElementById('darkColor').value);document.querySelectorAll('.hint').forEach(x=>x.style.boxShadow='inset 0 0 0 5px '+document.getElementById('hintColor').value)}
 function resetCustom(){document.getElementById('themePick').value='dark';document.getElementById('piecePick').value='classic';document.getElementById('pieceSize').value=42;document.getElementById('lightColor').value='#e8dfc9';document.getElementById('darkColor').value='#78917f';document.getElementById('hintColor').value='#24d36b';applyTheme();applyPieces();applySize();applyBoard()}
 function showGambits(){const q=document.getElementById('gambitSearch').value.toLowerCase();document.getElementById('gambitList').innerHTML=gambits.filter(g=>g.join(' ').toLowerCase().includes(q)).map(g=>'<div class="rowx"><span><b>'+g[0]+'</b><br><small>'+g[1]+'</small></span><button onclick="toggleFav(\''+g[0]+'\')">'+(favs.includes(g[0])?'★':'☆')+'</button></div>').join('')||'<small>Ничего не найдено.</small>';document.getElementById('favList').textContent='Избранное: '+(favs.join(', ')||'пока пусто')}
 function toggleFav(n){favs=favs.includes(n)?favs.filter(x=>x!==n):[...favs,n];localStorage.setItem('cc_favs',JSON.stringify(favs));showGambits()}
 const oldDraw=draw;
-draw=function(){oldDraw();applySize();applyBoard();if(localStorage.getItem('cc_pieces')==='emoji'){document.querySelectorAll('.sq').forEach(el=>{const p=game&&game.get(el.dataset.square);});}}
+draw=function(){oldDraw();applySize();applyBoard();applyPieces()}
 try{document.getElementById('themePick').value=localStorage.getItem('cc_theme')||'dark';applyTheme();showGambits();if(localStorage.getItem('cc_tips')!==null)document.getElementById('setup').style.display='none';}catch(e){}
 </script>
 </body></html>
