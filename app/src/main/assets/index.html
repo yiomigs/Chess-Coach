@@ -11,7 +11,7 @@ h1{font-size:25px;margin:4px 0 2px}.sub{color:#aab8c2;font-size:13px;margin-bott
 .panel{background:var(--panel);border-radius:16px;padding:14px;margin:12px 0}
 #board{display:grid;grid-template-columns:repeat(8,1fr);width:min(92vw,440px);aspect-ratio:1;margin:auto;border:3px solid #344653;border-radius:8px;overflow:hidden}
 .sq{display:flex;align-items:center;justify-content:center;font-size:clamp(25px,8vw,48px);position:relative;cursor:pointer;user-select:none}
-.light{background:#e8dfc9;color:#111}.dark{background:#78917f;color:#111}.selected{outline:4px solid #f4d35e;outline-offset:-4px}.last{background:#b8c66a}
+.light{background:#e8dfc9;color:#111}.dark{background:#78917f;color:#111}.selected{outline:4px solid #f4d35e;outline-offset:-4px}.last{background:#b8c66a}.hint{box-shadow:inset 0 0 0 5px #24d36b!important}.hintto{box-shadow:inset 0 0 0 5px #24d36b!important}
 .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 button{border:0;border-radius:10px;padding:11px 13px;background:#304454;color:white;font-weight:600}
 button.primary{background:var(--accent);color:#10251b}
@@ -25,21 +25,24 @@ small{color:#9eacb6}.tag{display:inline-block;background:#293b48;padding:5px 9px
 <div class="controls"><button onclick="undo()">↶ Назад</button><button onclick="reset()">Новая партия</button><button onclick="flip()">Перевернуть</button></div></div>
 <div class="panel"><div id="status">Загрузка шахматного движка…</div><p id="opening">Дебют: —</p><div id="moves">Ходы появятся здесь.</div></div>
 <div class="panel"><b>Позиция FEN</b><input id="fen" style="width:100%;margin-top:8px;padding:10px;border-radius:8px" placeholder="Вставь FEN"><div class="controls"><button onclick="loadFen()">Загрузить FEN</button><button onclick="copyFen()">Копировать FEN</button></div></div>
-<div class="panel"><b>Оценка</b><p>Пока доступна проверка легальности ходов, шаха, мата и патовых ситуаций. Движковая оценка и определение «бриллиантовых» ходов ещё не подключены.</p><small>Используй приложение для обучения и анализа после партии, а не для подсказок в рейтинговой игре.</small></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<div class="panel"><b>Подсказка по позиции</b><p id="advice">Нажми «Найти лучший ход».</p><div class="controls"><button class="primary" onclick="analyze()">Найти лучший ход</button></div><small>Встроенный учебный поиск оценивает материал и мат. Это не Stockfish и не определяет настоящие «бриллиантовые» ходы.</small></div>
+<script src="chess.js"></script>
 <script>
 const glyph={w:{k:'♔',q:'♕',r:'♖',b:'♗',n:'♘',p:'♙'},b:{k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'}};
-let game,selected=null,flipped=false,last=null;
+let game,selected=null,flipped=false,last=null,hint=null;
 const board=document.getElementById('board');
 function init(){if(typeof Chess==='undefined'){document.getElementById('status').textContent='Нет подключения к интернету: не удалось загрузить шахматный модуль.';return}game=new Chess();draw();update()}
-function draw(){if(!game)return;board.innerHTML='';let rows=flipped?[7,6,5,4,3,2,1,0]:[0,1,2,3,4,5,6,7];let cols=flipped?[7,6,5,4,3,2,1,0]:[0,1,2,3,4,5,6,7];let a=game.SQUARES;rows.forEach((r,ri)=>cols.forEach((c,ci)=>{let sq=String.fromCharCode(97+c)+(r+1),p=game.get(sq),el=document.createElement('div');el.className='sq '+(((r+c)%2)?'dark':'light');if(selected===sq)el.classList.add('selected');if(last&& (last.from===sq||last.to===sq))el.classList.add('last');el.textContent=p?glyph[p.color][p.type]:'';el.onclick=()=>tap(sq);board.appendChild(el)}))}
+function draw(){if(!game)return;board.innerHTML='';let rows=flipped?[7,6,5,4,3,2,1,0]:[0,1,2,3,4,5,6,7];let cols=flipped?[7,6,5,4,3,2,1,0]:[0,1,2,3,4,5,6,7];let a=game.SQUARES;rows.forEach((r,ri)=>cols.forEach((c,ci)=>{let sq=String.fromCharCode(97+c)+(r+1),p=game.get(sq),el=document.createElement('div');el.className='sq '+(((r+c)%2)?'dark':'light');if(selected===sq)el.classList.add('selected');if(last&& (last.from===sq||last.to===sq))el.classList.add('last');if(hint&&(hint.from===sq||hint.to===sq))el.classList.add('hint');el.textContent=p?glyph[p.color][p.type]:'';el.onclick=()=>tap(sq);board.appendChild(el)}))}
 function tap(sq){if(!game||game.game_over())return;let p=game.get(sq);if(selected){let m=game.move({from:selected,to:sq,promotion:'q'});if(m){last=m;selected=null;draw();update();return}}if(p&&p.color===game.turn())selected=sq;else selected=null;draw()}
 function update(){let s=game.in_checkmate()?'Мат!':game.in_check()?'Шах':game.in_stalemate()?'Пат':game.in_draw()?'Ничья':(game.turn()==='w'?'Ход белых':'Ход чёрных');document.getElementById('status').textContent=s;document.getElementById('moves').textContent=game.history().join('  ')||'Ходов пока нет.';document.getElementById('opening').textContent='Дебют: '+opening(game.history())}
 function opening(h){let x=h.slice(0,5).join(' ');if(x.startsWith('e4 e5 Nf3 Nc6 Bb5'))return 'Испанская партия';if(x.startsWith('e4 e5 Nf3 Nc6 Bc4'))return 'Итальянская партия';if(x.startsWith('e4 c5'))return 'Сицилианская защита';if(x.startsWith('d4 d5 c4'))return 'Ферзевый гамбит';if(x.startsWith('e4 e5 f4'))return 'Королевский гамбит';if(x.startsWith('e4 e5 d4'))return 'Центральный гамбит';return h.length?'Определяется по первым ходам':'—'}
-function undo(){if(game&&game.undo()){last=null;selected=null;draw();update()}}
-function reset(){if(game){game.reset();last=null;selected=null;draw();update()}}
+function undo(){if(game&&game.undo()){last=null;hint=null;selected=null;draw();update()}}
+function reset(){if(game){game.reset();last=null;hint=null;selected=null;draw();update();document.getElementById('advice').textContent='Нажми «Найти лучший ход».'}}
 function flip(){flipped=!flipped;draw()}
-function loadFen(){try{let g=new Chess(document.getElementById('fen').value.trim());if(!g.load(document.getElementById('fen').value.trim()))throw Error();game=g;last=null;selected=null;draw();update()}catch(e){alert('Некорректный FEN')}}
+function evaluate(){if(game.in_checkmate())return game.turn()==='w'?-100000:100000;if(game.in_draw())return 0;let v=0,vals={p:100,n:320,b:330,r:500,q:900,k:0},b=game.board();for(let r=0;r<8;r++)for(let c=0;c<8;c++){let p=b[r][c];if(!p)continue;let s=vals[p.type];if(p.type==='p')s+=(p.color==='w'?(6-r):(r-1))*5;if(p.type==='n'||p.type==='b'){let center=3.5-(Math.abs(3.5-r)+Math.abs(3.5-c))/2;s+=center*8}v+=(p.color==='w'?s:-s)}return v}
+function search(depth,alpha,beta){if(depth===0||game.game_over())return evaluate();let moves=game.moves();if(game.turn()==='w'){let best=-Infinity;for(let m of moves){game.move(m);let s=search(depth-1,alpha,beta);game.undo();best=Math.max(best,s);alpha=Math.max(alpha,best);if(beta<=alpha)break}return best}else{let best=Infinity;for(let m of moves){game.move(m);let s=search(depth-1,alpha,beta);game.undo();best=Math.min(best,s);beta=Math.min(beta,best);if(beta<=alpha)break}return best}}
+function analyze(){if(!game||game.game_over()){document.getElementById('advice').textContent='В этой позиции партия уже завершена.';return}let side=game.turn(),moves=game.moves({verbose:true}),best=null,bestScore=side==='w'?-Infinity:Infinity;for(let m of moves){game.move(m);let score=search(2,-Infinity,Infinity);game.undo();if((side==='w'&&score>bestScore)||(side==='b'&&score<bestScore)){bestScore=score;best=m}}if(!best){document.getElementById('advice').textContent='Не удалось найти ход.';return}hint={from:best.from,to:best.to};draw();let score=(bestScore/100).toFixed(1);document.getElementById('advice').textContent='Лучший найденный ход: '+best.san+' ('+best.from+' → '+best.to+'). Оценка материала: '+(bestScore>0?'+':'')+score;}
+function loadFen(){try{let g=new Chess();if(!g.load(document.getElementById('fen').value.trim()))throw Error();game=g;last=null;selected=null;draw();update()}catch(e){alert('Некорректный FEN')}}
 function copyFen(){if(game){let t=game.fen();if(navigator.clipboard)navigator.clipboard.writeText(t);else alert(t)}}
 init();
 </script>
