@@ -18,7 +18,17 @@ button.primary{background:var(--accent);color:#10251b}
 #status{font-weight:600;color:var(--accent)}#moves{white-space:pre-wrap;line-height:1.6;max-height:110px;overflow:auto;color:#d1dce3}
 small{color:#9eacb6}.tag{display:inline-block;background:#293b48;padding:5px 9px;border-radius:8px;margin:3px}
 </style>
-</head>
+
+<style>
+.extra{background:#1b2935;border-radius:15px;padding:14px;margin:12px 0}
+.extra h2{font-size:18px;margin:0 0 10px}
+.extra input,.extra select{max-width:100%;padding:9px;border-radius:9px;border:1px solid #526779;background:#101820;color:white}
+.rowx{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:9px 0}
+#setup{position:fixed;inset:0;background:#08111bee;z-index:1000;display:flex;align-items:center;justify-content:center;padding:18px}
+#setup .cardx{max-width:440px;width:100%;background:#1b2935;padding:22px;border-radius:20px}
+#setup h2{margin-top:0}
+#floatingHint{color:#9fe3b8;font-size:13px}
+</style></head>
 <body>
 <h1>Chess Coach</h1><div class="sub">Тренировка, разбор ходов и дебютов</div>
 <div class="panel"><div id="board" aria-label="Шахматная доска"></div>
@@ -45,5 +55,76 @@ function analyze(){if(!game||game.game_over()){document.getElementById('advice')
 function loadFen(){try{let g=new Chess();if(!g.load(document.getElementById('fen').value.trim()))throw Error();game=g;last=null;selected=null;draw();update()}catch(e){alert('Некорректный FEN')}}
 function copyFen(){if(game){let t=game.fen();if(navigator.clipboard)navigator.clipboard.writeText(t);else alert(t)}}
 init();
+</script>
+
+<div class="extra">
+ <h2>⚙ Настройки и кастомизация</h2>
+ <div class="rowx"><label>Тема <select id="themePick" onchange="applyTheme()"><option value="dark">Космос</option><option value="midnight">Полночь</option><option value="forest">Лес</option><option value="light">Светлая</option></select></label>
+ <label>Фигуры <select id="piecePick" onchange="applyPieces()"><option value="classic">Классические</option><option value="emoji">Минималистичные</option></select></label></div>
+ <div class="rowx"><label>Размер фигур <input id="pieceSize" type="range" min="24" max="58" value="42" oninput="applySize()"></label></div>
+ <div class="rowx"><label>Светлые клетки <input id="lightColor" type="color" value="#e8dfc9" onchange="applyBoard()"></label><label>Тёмные клетки <input id="darkColor" type="color" value="#78917f" onchange="applyBoard()"></label></div>
+ <div class="rowx"><label>Цвет подсказки <input id="hintColor" type="color" value="#24d36b" onchange="applyBoard()"></label></div>
+ <button onclick="resetCustom()">Сбросить оформление</button>
+</div>
+<div class="extra">
+ <h2>♫ Музыка</h2>
+ <p>Выбери аудиофайл на телефоне. Его можно слушать в приложении и управлять воспроизведением через плавающее меню.</p>
+ <div class="rowx"><button class="primary" onclick="document.getElementById('audioFile').click()">Загрузить звук</button><input id="audioFile" type="file" accept="audio/*" hidden onchange="musicFile(this)"></div>
+ <audio id="musicPreview" controls style="width:100%"></audio><p id="musicName"><small>Файл не выбран</small></p>
+</div>
+<div class="extra">
+ <h2>♟ Любимые дебюты и гамбиты</h2>
+ <input id="gambitSearch" placeholder="Найти гамбит или дебют..." oninput="showGambits()" style="width:100%">
+ <div id="gambitList"></div>
+ <p id="favList"><small>Избранное пока пусто.</small></p>
+</div>
+<div class="extra">
+ <h2>Плавающее меню</h2>
+ <p>Небольшая панель поверх других приложений: управление музыкой и закрытие панели. Шахматные подсказки поверх рейтинговой игры не показываются.</p>
+ <button class="primary" onclick="enableOverlay()">Включить плавающее меню</button>
+ <button onclick="Android&&Android.stopOverlay()">Выключить меню</button>
+ <p id="overlayStatus" id="floatingHint">Разрешение можно отозвать в настройках Android.</p>
+</div>
+<div id="setup">
+ <div class="cardx">
+  <h2>Добро пожаловать в Chess Coach</h2>
+  <p>Выбери, как пользоваться приложением.</p>
+  <p><b>Подсказки:</b> в этой версии анализ доступен только в тренировке и при разборе позиций, не во время рейтинговых партий.</p>
+  <div class="rowx"><button class="primary" onclick="finishSetup()">Продолжить без подсказок</button></div>
+  <div class="rowx"><button onclick="finishSetup(true)">Включить анализ в тренировке</button></div>
+  <hr>
+  <p>Хочешь открывать музыку поверх других приложений?</p>
+  <button onclick="enableOverlay()">Разрешить плавающее меню</button>
+ </div>
+</div>
+
+<script>
+const themes={dark:['#101820','#1b2935','#f1f5f7'],midnight:['#080d1a','#151d35','#f4f6ff'],forest:['#0d1b16','#1b3328','#effaf2'],light:['#eef2f5','#ffffff','#17212b']};
+const gambits=[
+ ['Королевский гамбит','e4 e5 f4','Открытый дебют'],
+ ['Гамбит Эванса','e4 e5 Nf3 Nc6 Bc4 Bc5 b4','Итальянская партия'],
+ ['Датский гамбит','e4 e5 d4 exd4 c3','Открытый дебют'],
+ ['Гамбит Смита—Морра','e4 c5 d4 cxd4 c3','Сицилианская защита'],
+ ['Будапештский гамбит','d4 Nf6 c4 e5','Индийская защита'],
+ ['Контргамбит Альбина','d4 d5 c4 e5','Ферзевый гамбит'],
+ ['Латвийский гамбит','e4 e5 Nf3 f5','Открытый дебют'],
+ ['Гамбит Бенко','d4 Nf6 c4 c5 d5 b5','Индийская защита']
+];
+let favs=JSON.parse(localStorage.getItem('cc_favs')||'[]');
+function finishSetup(tips){localStorage.setItem('cc_tips',tips?'1':'0');document.getElementById('setup').style.display='none';}
+function enableOverlay(){if(window.Android&&Android.requestOverlay)Android.requestOverlay();else overlayStatus('Открой приложение на Android, чтобы включить плавающее меню.')}
+function overlayStatus(s){document.getElementById('overlayStatus').textContent=s}
+function audioChosen(){overlayStatus('Аудиофайл передан в плавающее меню.')}
+function musicFile(el){const file=el.files&&el.files[0];if(!file)return;const url=URL.createObjectURL(file);const audio=document.getElementById('musicPreview');audio.src=url;document.getElementById('musicName').textContent=file.name;if(window.Android&&Android.pickAudio)Android.pickAudio();}
+function applyTheme(){const t=themes[document.getElementById('themePick').value];document.documentElement.style.setProperty('--bg',t[0]);document.documentElement.style.setProperty('--panel',t[1]);document.documentElement.style.setProperty('--text',t[2]);localStorage.setItem('cc_theme',document.getElementById('themePick').value)}
+function applyPieces(){const mode=document.getElementById('piecePick').value;localStorage.setItem('cc_pieces',mode);draw()}
+function applySize(){document.querySelectorAll('.sq').forEach(x=>x.style.fontSize=document.getElementById('pieceSize').value+'px')}
+function applyBoard(){document.querySelectorAll('.light').forEach(x=>x.style.background=document.getElementById('lightColor').value);document.querySelectorAll('.dark').forEach(x=>x.style.background=document.getElementById('darkColor').value);document.querySelectorAll('.hint').forEach(x=>x.style.boxShadow='inset 0 0 0 5px '+document.getElementById('hintColor').value)}
+function resetCustom(){document.getElementById('themePick').value='dark';document.getElementById('piecePick').value='classic';document.getElementById('pieceSize').value=42;document.getElementById('lightColor').value='#e8dfc9';document.getElementById('darkColor').value='#78917f';document.getElementById('hintColor').value='#24d36b';applyTheme();applyPieces();applySize();applyBoard()}
+function showGambits(){const q=document.getElementById('gambitSearch').value.toLowerCase();document.getElementById('gambitList').innerHTML=gambits.filter(g=>g.join(' ').toLowerCase().includes(q)).map(g=>'<div class="rowx"><span><b>'+g[0]+'</b><br><small>'+g[1]+'</small></span><button onclick="toggleFav(\''+g[0]+'\')">'+(favs.includes(g[0])?'★':'☆')+'</button></div>').join('')||'<small>Ничего не найдено.</small>';document.getElementById('favList').textContent='Избранное: '+(favs.join(', ')||'пока пусто')}
+function toggleFav(n){favs=favs.includes(n)?favs.filter(x=>x!==n):[...favs,n];localStorage.setItem('cc_favs',JSON.stringify(favs));showGambits()}
+const oldDraw=draw;
+draw=function(){oldDraw();applySize();applyBoard();if(localStorage.getItem('cc_pieces')==='emoji'){document.querySelectorAll('.sq').forEach(el=>{const p=game&&game.get(el.dataset.square);});}}
+try{document.getElementById('themePick').value=localStorage.getItem('cc_theme')||'dark';applyTheme();showGambits();if(localStorage.getItem('cc_tips')!==null)document.getElementById('setup').style.display='none';}catch(e){}
 </script>
 </body></html>
